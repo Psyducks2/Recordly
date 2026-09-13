@@ -13,6 +13,7 @@ import {
 	shell,
 	systemPreferences,
 	Tray,
+	webContents as electronWebContents,
 } from "electron";
 import { RECORDINGS_DIR } from "./appPaths";
 import { showCursor } from "./cursorHider";
@@ -1059,11 +1060,13 @@ app.whenReady().then(async () => {
 			const frame = request.frame;
 			const isLiveFrame = Boolean(frame && !frame.isDestroyed());
 			const hudWindow = getHudOverlayWindow();
-			const requestingWebContents =
-				isLiveFrame && frame
-					? ((frame as { webContents?: Electron.WebContents }).webContents ??
-						(hudWindow && !hudWindow.isDestroyed() ? hudWindow.webContents : undefined))
-					: (hudWindow && !hudWindow.isDestroyed() ? hudWindow.webContents : undefined);
+			const requestingWebContents = frame
+				? isLiveFrame
+					? (electronWebContents.fromFrame(frame) ?? undefined)
+					: undefined
+				: hudWindow && !hudWindow.isDestroyed()
+					? hudWindow.webContents
+					: undefined;
 			const isHudMainFrame = Boolean(
 				requestingWebContents &&
 					isHudWebContents(requestingWebContents) &&
@@ -1078,9 +1081,11 @@ app.whenReady().then(async () => {
 						currentDocumentUrl:
 							isLiveFrame && frame?.url
 								? frame.url
-								: hudWindow && !hudWindow.isDestroyed()
-									? hudWindow.webContents.getURL()
-									: "",
+								: requestingWebContents && !requestingWebContents.isDestroyed()
+									? requestingWebContents.getURL()
+									: hudWindow && !hudWindow.isDestroyed()
+										? hudWindow.webContents.getURL()
+										: "",
 						securityOrigin: request.securityOrigin,
 						videoRequested: request.videoRequested,
 					},
@@ -1117,7 +1122,17 @@ app.whenReady().then(async () => {
 			}
 			const sources = await desktopCapturer.getSources({ types: ["screen", "window"] });
 			const source = sourceId
-				? (sources.find((s) => s.id === sourceId) ?? sources[0])
+				? (sources.find((s) => s.id === sourceId) ??
+					(sourceId.startsWith("screen:")
+						? sources.find(
+								(s) =>
+									s.display_id &&
+									(sourceId === s.display_id ||
+										sourceId === `screen:${s.display_id}:0` ||
+										sourceId.endsWith(`:${s.display_id}`)),
+							)
+						: undefined) ??
+					sources[0])
 				: sources[0];
 			if (source) {
 				callback({

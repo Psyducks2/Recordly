@@ -6,10 +6,24 @@ export interface GpuSwitches {
 	disableFeatures?: string[];
 }
 
+/**
+ * Determines whether Linux EGL rendering switch should be forced.
+ * Returns false on all environments to avoid GPU driver crashes.
+ *
+ * @param _env - Process environment variables.
+ * @returns Boolean flag indicating if EGL should be forced.
+ */
 export function shouldForceLinuxEgl(_env: NodeJS.ProcessEnv): boolean {
 	return false;
 }
 
+/**
+ * Returns platform-specific GPU command-line switches and disabled feature flags.
+ *
+ * @param platform - Target operating system platform.
+ * @param env - Process environment variables.
+ * @returns Object containing GPU switches and disabled features.
+ */
 export function getGpuSwitches(
 	platform: NodeJS.Platform,
 	env: NodeJS.ProcessEnv = process.env,
